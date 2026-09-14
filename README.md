@@ -10,6 +10,21 @@
 
 ---
 
+## 0. Quick start: order of work on a new MacBook8,1
+
+| Step | What | Where | Result |
+|---|---|---|---|
+| 1 | Install Debian 13 with `non-free-firmware` enabled, Broadcom Wi-Fi firmware | [Section 4](#4-fresh-install-baseline) | Booting system with Wi-Fi |
+| 2 | Fix the Apple SPI keyboard and touchpad (GRUB parameter) | [Section 6](#6-apple-spi-keyboard-and-touchpad-the-critical-issue) | Internal keyboard and touchpad work after every reboot |
+| 3 | Optional: SSH + Tailscale for remote recovery | [Section 5](#5-optional-but-strongly-recommended-tailscale--ssh-recovery-access) | A second way into the machine |
+| 4 | Get this repository on the MacBook: `sudo apt install git` then `git clone https://github.com/pmgart/macbook8-1-debian-guide.git` | — | Scripts available locally |
+| 5 | Internal speakers, headphone switching, microphone | [docs/audio/README.md](docs/audio/README.md) | Working audio |
+
+With an AI assistant: open the cloned repository in the assistant and ask it to follow [`AGENTS.md`](AGENTS.md).
+It will work through the steps above and the gated audio runbook, asking you before every privileged action.
+
+---
+
 ## 1. Purpose and boundaries
 
 This is a practical guide for rebuilding or recovering a Debian system on an **Apple MacBook8,1**. It documents the configuration that was verified on a real working installation, including a boot-time workaround for an Apple SPI keyboard/trackpad failure.
@@ -83,8 +98,8 @@ The reference host was using only **13 GB of 221 GB** on the root filesystem at 
 ### Deliberately not marked as solved
 
 - **FaceTime HD webcam:** the PCI device is visible but no V4L2 node such as `/dev/video0` exists. No webcam driver or userspace bridge is configured by this guide.
-- **Audio after suspend/resume:** the resume path resets the HDA link and the speakers stay silent until reboot. An external microphone on the combo jack is not supported.
-- **Suspend/resume reliability:** not yet tested as part of this recovery. Test it separately after establishing repeatable cold-boot and reboot success.
+- **Suspend/resume:** not working on the reference machine. After sleep the Apple SPI keyboard and touchpad stop working (owner report, 2026-09-14) and the internal speakers stay silent because the resume path resets the HDA link. Reboot instead of suspending.
+- **External microphone on the combo jack:** not supported by the audio setup (enabling it breaks the speaker clock).
 - **Bluetooth:** not evaluated in this guide.
 - **Battery-life tuning:** not evaluated in this guide.
 
@@ -347,7 +362,7 @@ Use this test matrix before calling the installation stable:
 | Normal reboot | Keyboard and touchpad work at login and after sign-in |
 | Cold boot | Shut down fully, wait briefly, start again, and retest both devices |
 | Repeated reboot | Repeat at least 2–3 times |
-| Suspend/resume | Test separately; it was not yet verified in the reference recovery |
+| Suspend/resume | Known broken on the reference machine (keyboard/touchpad and speakers fail after sleep); avoid suspend |
 | Kernel update | Re-run the validation commands after every new kernel |
 
 ### 6.7 Temporary boot recovery if the persistent change is not active

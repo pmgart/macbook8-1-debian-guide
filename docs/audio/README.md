@@ -25,20 +25,34 @@ into PipeWire. Details: [HOW_IT_WORKS.md](HOW_IT_WORKS.md).
 
 - Exact model `MacBook8,1` (`cat /sys/class/dmi/id/product_name`), Debian 13, kernel `6.12.*`.
 - The Apple SPI keyboard/trackpad fix from the [main guide](../../README.md#6-apple-spi-keyboard-and-touchpad-the-critical-issue) is in place.
-- Headphones already work on stock Debian.
+- PipeWire with WirePlumber 0.5 (Debian 13 default on desktop installs). PulseAudio is not supported by the desktop
+  part (section 4); the driver itself works with any ALSA user.
+- Headphones already play on stock Debian (`grep CS4208 /proc/asound/pcm` shows `CS4208 Analog`).
 - A way back: a second kernel in GRUB, or a Debian live USB. Everything here is undone by one script.
 
 Get the repository:
 
 ```bash
+sudo apt install git curl
 git clone https://github.com/pmgart/macbook8-1-debian-guide.git
 cd macbook8-1-debian-guide
 ```
 
+Check the EFI startup-chime mute bit (read-only):
+
+```bash
+python3 audio/diagnostics/efi-audio-mute.py check
+```
+
+The reference machine had `mute_bit=CLEAR` (the startup chime plays). The speaker fix relies on the firmware having
+initialised the speaker path at boot and was never tested with a muted chime. If it says `SET`, clear it first
+(`sudo python3 audio/diagnostics/efi-audio-mute.py apply`, then reboot and listen for the chime); the tool backs up
+the original value and changes only the mute bit.
+
 ## 2. Build the driver (no sudo for the build)
 
 ```bash
-sudo apt install build-essential linux-headers-$(uname -r) linux-source-6.12 alsa-utils python3
+sudo apt install build-essential linux-headers-$(uname -r) linux-source-6.12 alsa-utils python3 curl
 bash audio/scripts/build-driver.sh
 ```
 

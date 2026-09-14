@@ -13,6 +13,16 @@ only computer.
 | Understand or port the audio fix | [docs/audio/HOW_IT_WORKS.md](docs/audio/HOW_IT_WORKS.md) |
 | Hardware status / collecting diagnostics | [README.md](README.md) sections 2, 3 and 8 |
 
+## Setting up a new MacBook8,1: order of work
+
+1. Debian 13 installed with `non-free-firmware`, Wi-Fi working ([README.md](README.md) section 4).
+2. Apple SPI keyboard/touchpad fix, verified after reboot ([README.md](README.md) section 6).
+3. Optional remote recovery: SSH + Tailscale ([README.md](README.md) section 5).
+4. Audio: [docs/audio/AI_RUNBOOK.md](docs/audio/AI_RUNBOOK.md), gates 0–7.
+
+Check which steps are already done (read-only commands in each section) before changing anything, and tell the user
+the plan before starting. Avoid suspend/resume on this model: it breaks the Apple SPI input and the speakers.
+
 ## Non-negotiable rules
 
 1. **Verify the machine first:** `cat /sys/class/dmi/id/product_name` must print exactly `MacBook8,1`. Other Mac

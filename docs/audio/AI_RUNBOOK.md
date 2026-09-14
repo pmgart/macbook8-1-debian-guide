@@ -19,7 +19,11 @@ changing anything that is not described here.
    kernel in GRUB "Advanced options", or a Debian live USB.
 7. Keep private data out of anything published (hostnames, IPs, usernames, serial numbers).
 
-Commands below assume the repository root as the working directory.
+Commands below assume the repository root as the working directory. If the repository is not on the MacBook yet:
+`sudo apt install git curl` and `git clone https://github.com/pmgart/macbook8-1-debian-guide.git`.
+
+Prerequisite for the whole runbook: the machine already boots Debian 13 with working Wi-Fi and the Apple SPI
+keyboard/touchpad fix ([main README](../../README.md), quick start steps 1–2). Do those first if they are missing.
 
 ---
 
@@ -39,7 +43,9 @@ README section 6); `CS4208 Analog : ... playback 1 : capture 1`; `RESULT: STOCK`
 Ask the user to confirm headphones play sound now.
 
 **On failure:** wrong model or kernel series → stop, this setup does not apply. `NOT STOCK` → an earlier
-install exists; run gate 8 (restore), reboot, start again.
+install exists; run gate 8 (restore), reboot, start again. No `CS4208 Analog` line → the codec did not probe:
+collect `sudo dmesg | grep -iE 'hda|cs4208|codec'` and stop; do not install on top of a machine without working
+stock headphones. Apple SPI parameter missing → do the main README section 6 first.
 
 ## Gate 1: recovery path
 
@@ -53,14 +59,15 @@ Confirm with the user:
 python3 audio/diagnostics/efi-audio-mute.py check
 ```
 
-**Expected:** `mute_bit=CLEAR`. The reference machine had it clear. If `SET`, explain that the setup was never
-tested with a muted chime; clearing it is optional and needs the user's approval:
-`sudo python3 audio/diagnostics/efi-audio-mute.py apply` (backs up, changes only bit `0x80`, then reboot).
+**Expected:** `mute_bit=CLEAR`. The reference machine had it clear. If `SET`: the speaker fix depends on the firmware
+initialising the speaker path, and it was never tested with a muted chime. Recommend clearing it before gate 5, with
+the user's approval: `sudo python3 audio/diagnostics/efi-audio-mute.py apply` (backs up the value, changes only bit
+`0x80`, verifies the readback), then reboot; the user should hear the startup chime.
 
 ## Gate 3: packages (ask first)
 
 ```bash
-sudo apt install build-essential linux-headers-$(uname -r) linux-source-6.12 alsa-utils python3
+sudo apt install build-essential linux-headers-$(uname -r) linux-source-6.12 alsa-utils python3 curl
 dpkg-query -W -f='${Version}\n' linux-image-$(uname -r) linux-source-6.12
 ```
 
@@ -105,6 +112,9 @@ explain it, collect `sudo dmesg | grep -iE 'hda|cs4208|MacBook8,1'` and `sudo py
 then run gate 8. Do not retry with modified options.
 
 ## Gate 7: desktop audio (no sudo)
+
+Requires PipeWire + WirePlumber 0.5 (`wpctl status` works). On PulseAudio systems stop after gate 6 and tell the user
+the speakers are usable through ALSA only.
 
 ```bash
 bash audio/scripts/pipewire-speakers.sh install       # MacBook Speakers / Headphones / Microphone

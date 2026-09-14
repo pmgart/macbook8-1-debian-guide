@@ -1,0 +1,183 @@
+MacBook8,1 (A1534, Cirrus Logic CS4208, SSID 106b:6400): internal speaker support.
+
+SPDX-License-Identifier: GPL-2.0-only (derived from the Linux kernel file it patches)
+Base: Debian linux-source-6.12 6.12.107-1, sound/pci/hda/patch_cirrus.c
+      (sha256 40ebd2a0ce0edc69dcb288efc6d117701c17ce8f96bcc1642b8df360d75c4d2a)
+
+- Hide the combo-jack mic pin 0x18 and the speaker pin 0x1d from the generic parser.
+  Enabling input/VREF on 0x18 latches the codec clock (vendor coef 0x1f -> 0x400) and silences the speakers.
+- Add a 4-channel 44.1 kHz S16_LE "CS4208 Speaker" PCM on digital converter 0x0a -> pin 0x1d whose
+  prepare() programs the TDM path the way EFI does for the startup chime.
+- Log the codec clock state once after init.
+Requires snd_hda_intel probe_only=2 probe_mask=0x101 single_cmd=1 power_save=0 on the CS4208 controller
+(no link reset at probe). See docs/audio/HOW_IT_WORKS.md.
+
+--- a/sound/pci/hda/patch_cirrus.c
++++ b/sound/pci/hda/patch_cirrus.c
+@@ -6,6 +6,7 @@
+  */
+ 
+ #include <linux/init.h>
++#include <linux/delay.h>
+ #include <linux/slab.h>
+ #include <linux/module.h>
+ #include <sound/core.h>
+@@ -18,6 +19,123 @@
+ #include "hda_generic.h"
+ 
+ /*
++ * MacBook8,1 (A1534, CS4208 SSID 106b:6400) internal speakers.
++ *
++ * The speakers are fed by a 4-channel TDM stream on digital converter 0x0a ->
++ * pin 0x1d -> class-D amps, clocked by the codec PLL that EFI leaves locked
++ * (vendor coef 0x1f == 0). Two things latch that clock (0x1f = 0x400) and keep
++ * the speakers silent until the next cold boot:
++ *  - a controller link reset: avoided with snd_hda_intel probe_only=2 for this
++ *    controller (/etc/modprobe.d/mb81-singlecmd.conf);
++ *  - input/VREF enable on the combo-jack mic pin 0x18 during generic init.
++ * Pin 0x18 and speaker pin 0x1d are therefore hidden from the generic parser,
++ * and a separate "CS4208 Speaker" PCM programs the TDM path the way EFI does.
++ */
++#define MB81_SSID			0x106b6400
++#define MB81_SPK_CVT			0x0a
++#define MB81_SPK_PIN			0x1d
++#define MB81_MIC_JACK_PIN		0x18
++#define MB81_VERB_SET_TDM_ENABLE	0x7f0
++#define MB81_PINCFG_UNUSED		0x411111f0
++
++static bool mb81_is_macbook81(struct hda_codec *codec)
++{
++	return codec->core.vendor_id == 0x10134208 &&
++	       codec->core.subsystem_id == MB81_SSID;
++}
++
++static void mb81_coef_set(struct hda_codec *codec, unsigned int idx,
++			  unsigned int val)
++{
++	snd_hda_codec_write(codec, 0x24, 0, AC_VERB_SET_COEF_INDEX, idx);
++	snd_hda_codec_write(codec, 0x24, 0, AC_VERB_SET_PROC_COEF, val);
++}
++
++static unsigned int mb81_clock_coef(struct hda_codec *codec)
++{
++	snd_hda_codec_write(codec, 0x24, 0, AC_VERB_SET_COEF_INDEX, 0x1f);
++	return snd_hda_codec_read(codec, 0x24, 0, AC_VERB_GET_PROC_COEF, 0);
++}
++
++static int mb81_spk_prepare(struct hda_pcm_stream *hinfo,
++			    struct hda_codec *codec,
++			    unsigned int stream_tag, unsigned int format,
++			    struct snd_pcm_substream *substream)
++{
++	snd_hda_codec_write(codec, MB81_SPK_CVT, 0, AC_VERB_SET_POWER_STATE,
++			    AC_PWRST_D0);
++	msleep(20);
++	/* EFI values; the stock cs4208_coef_init_verbs overwrite them */
++	mb81_coef_set(codec, 0x33, 0x0821);
++	mb81_coef_set(codec, 0x34, 0x3b21);
++	snd_hda_codec_write(codec, MB81_SPK_CVT, 0, AC_VERB_SET_CVT_CHAN_COUNT,
++			    0x03);
++	/*
++	 * setup_stream only writes when its cache differs, so verify the
++	 * hardware afterwards and fix only a stale value. Never rewrite the
++	 * format needlessly: a format change mid-stream de-syncs the TDM link.
++	 */
++	snd_hda_codec_setup_stream(codec, MB81_SPK_CVT, stream_tag, 0, format);
++	if (snd_hda_codec_read(codec, MB81_SPK_CVT, 0,
++			       AC_VERB_GET_STREAM_FORMAT, 0) != format)
++		snd_hda_codec_write(codec, MB81_SPK_CVT, 0,
++				    AC_VERB_SET_STREAM_FORMAT, format);
++	if (snd_hda_codec_read(codec, MB81_SPK_CVT, 0, AC_VERB_GET_CONV, 0) !=
++	    (stream_tag << 4))
++		snd_hda_codec_write(codec, MB81_SPK_CVT, 0,
++				    AC_VERB_SET_CHANNEL_STREAMID,
++				    stream_tag << 4);
++	snd_hda_codec_write(codec, MB81_SPK_PIN, 0, AC_VERB_SET_CONNECT_SEL, 0);
++	snd_hda_codec_write(codec, MB81_SPK_PIN, 0,
++			    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
++	snd_hda_codec_write(codec, 0x24, 0, MB81_VERB_SET_TDM_ENABLE, 0x01);
++	snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_MASK, 0x09);
++	snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DIRECTION, 0x01);
++	snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA, 0x01);
++	codec_dbg(codec, "MacBook8,1 speaker prepare: tag=%u format=0x%x\n",
++		  stream_tag, format);
++	return 0;
++}
++
++static int mb81_spk_cleanup(struct hda_pcm_stream *hinfo,
++			    struct hda_codec *codec,
++			    struct snd_pcm_substream *substream)
++{
++	snd_hda_codec_cleanup_stream(codec, MB81_SPK_CVT);
++	return 0;
++}
++
++static const struct hda_pcm_stream mb81_spk_playback = {
++	.substreams = 1,
++	.channels_min = 4,
++	.channels_max = 4,
++	.nid = MB81_SPK_CVT,
++	.rates = SNDRV_PCM_RATE_44100,
++	.formats = SNDRV_PCM_FMTBIT_S16_LE,
++	.maxbps = 16,
++	.ops = {
++		.prepare = mb81_spk_prepare,
++		.cleanup = mb81_spk_cleanup,
++	},
++};
++
++static int cs_build_pcms(struct hda_codec *codec)
++{
++	struct hda_pcm *info;
++	int err;
++
++	err = snd_hda_gen_build_pcms(codec);
++	if (err < 0 || !mb81_is_macbook81(codec))
++		return err;
++	info = snd_hda_codec_pcm_new(codec, "CS4208 Speaker");
++	if (!info)
++		return -ENOMEM;
++	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = mb81_spk_playback;
++	info->pcm_type = HDA_PCM_TYPE_AUDIO;
++	return 0;
++}
++
++/*
+  */
+ 
+ struct cs_spec {
+@@ -317,6 +435,13 @@
+ 		init_digital_coef(codec);
+ 	}
+ 
++	if (mb81_is_macbook81(codec)) {
++		unsigned int clk = mb81_clock_coef(codec);
++
++		codec_info(codec, "MacBook8,1 speakers: codec clock %s (coef 0x1f=0x%04x)\n",
++			   clk ? "LATCHED - speakers will be silent" : "locked", clk);
++	}
++
+ 	return 0;
+ }
+ 
+@@ -335,7 +460,7 @@
+ 
+ static const struct hda_codec_ops cs_patch_ops = {
+ 	.build_controls = cs_build_controls,
+-	.build_pcms = snd_hda_gen_build_pcms,
++	.build_pcms = cs_build_pcms,
+ 	.init = cs_init,
+ 	.free = cs_free,
+ 	.unsol_event = snd_hda_jack_unsol_event,
+@@ -790,6 +915,11 @@
+ 	cs4208_fix_amp_caps(codec, 0x1b);
+ 	cs4208_fix_amp_caps(codec, 0x1c);
+ 
++	if (mb81_is_macbook81(codec)) {
++		snd_hda_codec_set_pincfg(codec, MB81_MIC_JACK_PIN, MB81_PINCFG_UNUSED);
++		snd_hda_codec_set_pincfg(codec, MB81_SPK_PIN, MB81_PINCFG_UNUSED);
++	}
++
+ 	err = cs_parse_auto_config(codec);
+ 	if (err < 0)
+ 		goto error;

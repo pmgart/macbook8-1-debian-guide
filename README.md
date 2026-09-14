@@ -2,9 +2,40 @@
 
 > A reproducible installation, recovery, and hardware-status guide for the early-2015 12-inch Retina MacBook (`MacBook8,1`).
 >
-> **Document status:** working system snapshot, updated 2026-09-12  
+> **Document status:** working system snapshot, updated 2026-09-14  
 > **Audience:** Linux users, maintainers, and AI agents  
-> **Scope:** Debian 13 (trixie), desktop-agnostic base system, Cinnamon reference desktop, Apple SPI input recovery
+> **Scope:** Debian 13 (trixie), desktop-agnostic base system, Cinnamon reference desktop, Apple SPI input recovery, internal speaker audio
+>
+> **Using an AI assistant?** Point it at [`AGENTS.md`](AGENTS.md). Audio install for agents: [`docs/audio/AI_RUNBOOK.md`](docs/audio/AI_RUNBOOK.md).
+
+---
+
+## 0. Quick start: order of work on a new MacBook8,1
+
+| Step | What | Where | Result |
+|---|---|---|---|
+| 1 | Install Debian 13 with `non-free-firmware` enabled, Broadcom Wi-Fi firmware | [Section 4](#4-fresh-install-baseline) | Booting system with Wi-Fi |
+| 2 | Fix the Apple SPI keyboard and touchpad (GRUB parameter) | [Section 6](#6-apple-spi-keyboard-and-touchpad-the-critical-issue) | Internal keyboard and touchpad work after every reboot |
+| 3 | Optional: SSH + Tailscale for remote recovery | [Section 5](#5-optional-but-strongly-recommended-tailscale--ssh-recovery-access) | A second way into the machine |
+| 4 | Get this repository on the MacBook: `sudo apt install git` then `git clone https://github.com/pmgart/macbook8-1-debian-guide.git` | — | Scripts available locally |
+| 5 | Internal speakers, headphone switching, microphone | [docs/audio/README.md](docs/audio/README.md) | Working audio |
+
+With an AI assistant: open the cloned repository in the assistant and ask it to follow [`AGENTS.md`](AGENTS.md).
+It will work through the steps above and the gated audio runbook, asking you before every privileged action.
+
+### Work in progress
+
+These are known open issues. They are being worked on and are **not solved** in this guide yet:
+
+| Area | Current state | Workaround until solved |
+|---|---|---|
+| **Sleep / wake (suspend/resume)** | After sleep the Apple SPI keyboard and touchpad stop working, and the internal speakers stay silent | Shut down or reboot instead of sleeping; consider disabling automatic suspend (lid close / idle) in your desktop's power settings |
+| **Keyboard after sleep** | Internal keyboard and touchpad fail after resume (see above) | Reboot; keep an external USB keyboard or SSH access available |
+| **Keyboard backlight default** | Backlight comes back at 0% after every boot (the saved level is 0 when it is stored at shutdown) | Set it by hand after login; a boot-time default is prepared but not yet verified |
+| **Audio after kernel updates** | Speaker driver must be rebuilt and reinstalled manually for each new kernel | Follow [docs/audio/README.md section 6](docs/audio/README.md#6-after-a-debian-kernel-update); automatic rebuild (DKMS) is planned |
+| **Public audio install/restore scripts** | Built from the scripts verified on the reference machine; the build is verified from GitHub, a full reinstall with the public scripts is still to be repeated | Follow the gates in [docs/audio/AI_RUNBOOK.md](docs/audio/AI_RUNBOOK.md); every step checks itself and can be undone |
+| **FaceTime HD webcam** | Not working (section 9) | None yet |
+| **Bluetooth, battery-life tuning** | Not evaluated | — |
 
 ---
 
@@ -41,7 +72,9 @@ The guide is **desktop-environment agnostic**. Cinnamon is the reference desktop
 | Keyboard | Apple SPI Keyboard | Working with PIO workaround |
 | Touchpad | Apple SPI Touchpad | Working with PIO workaround |
 | Camera | Broadcom 720p FaceTime HD Camera (`14e4:1570`) | **Not working yet**; no `/dev/video0` device |
-| Audio hardware | Intel/Apple HDA controllers, including CS4208 path | **Not working yet** from the user’s perspective; do not treat detected ALSA/PipeWire devices as a completed audio fix |
+| Audio: internal speakers | Cirrus Logic CS4208 (`10134208`, SSID `106b6400`), 4-channel TDM amplifier path | **Working** with the patched codec driver and options in [`docs/audio`](docs/audio/README.md) |
+| Audio: headphones / internal mic | CS4208 analog path | **Working** (stock Debian already plays headphones); automatic headphone/speaker switching with [`docs/audio`](docs/audio/README.md) |
+| Audio: mic on the combo jack | CS4208 pin `0x18` | **Not supported**: enabling it breaks the speaker clock |
 
 ### 2.2 Verified software baseline
 
@@ -74,12 +107,13 @@ The reference host was using only **13 GB of 221 GB** on the root filesystem at 
 - Apple SPI keyboard works.
 - Apple SPI touchpad works.
 - The Apple SPI boot is clean: no Apple SPI/SPI timeout or failure message was found in the current boot kernel log.
+- Internal speakers, headphones and the internal microphone work after installing the audio setup in [`docs/audio/README.md`](docs/audio/README.md) (verified after reboot, 2026-09-14).
 
 ### Deliberately not marked as solved
 
 - **FaceTime HD webcam:** the PCI device is visible but no V4L2 node such as `/dev/video0` exists. No webcam driver or userspace bridge is configured by this guide.
-- **Audio:** ALSA/PipeWire enumerate internal analog and HDMI devices, but working audio has not been confirmed and the user reports that it is not functional. No audio-tuning claim is made here.
-- **Suspend/resume reliability:** not yet tested as part of this recovery. Test it separately after establishing repeatable cold-boot and reboot success.
+- **Suspend/resume:** not working on the reference machine. After sleep the Apple SPI keyboard and touchpad stop working (owner report, 2026-09-14) and the internal speakers stay silent because the resume path resets the HDA link. Reboot instead of suspending.
+- **External microphone on the combo jack:** not supported by the audio setup (enabling it breaks the speaker clock).
 - **Bluetooth:** not evaluated in this guide.
 - **Battery-life tuning:** not evaluated in this guide.
 
@@ -342,7 +376,7 @@ Use this test matrix before calling the installation stable:
 | Normal reboot | Keyboard and touchpad work at login and after sign-in |
 | Cold boot | Shut down fully, wait briefly, start again, and retest both devices |
 | Repeated reboot | Repeat at least 2–3 times |
-| Suspend/resume | Test separately; it was not yet verified in the reference recovery |
+| Suspend/resume | Known broken on the reference machine (keyboard/touchpad and speakers fail after sleep); avoid suspend |
 | Kernel update | Re-run the validation commands after every new kernel |
 
 ### 6.7 Temporary boot recovery if the persistent change is not active
@@ -434,7 +468,7 @@ An AI agent should:
 1. Read and verify DMI identity before recommending a MacBook8,1-specific workaround.
 2. Preserve the current GRUB configuration with a timestamped backup before modifying it.
 3. Never claim keyboard/trackpad success from module presence alone; verify both named input devices after reboot.
-4. Never claim webcam or audio is solved merely because PCI, ALSA, PipeWire, or a package is present.
+4. Never claim webcam or audio is solved merely because PCI, ALSA, PipeWire, or a package is present; audio success requires the user hearing it (see [`docs/audio/AI_RUNBOOK.md`](docs/audio/AI_RUNBOOK.md)).
 5. Never reboot a remote machine without explicit current-turn approval and a confirmed recovery channel.
 6. Re-check the workaround after a kernel update and remove it only after the upstream DMI PIO quirk is confirmed in the installed kernel.
 
@@ -463,31 +497,29 @@ Record the exact kernel version and device IDs with any solution.
 
 ---
 
-## 10. Audio: detected stack, not a completed fix
+## 10. Audio: internal speakers, headphones, microphone
 
-The reference system has Intel/Apple HDA hardware and PipeWire/WirePlumber running. It enumerates internal analog and HDMI sinks, and application streams can appear routed to the analog CS4208 path.
+Stock Debian plays the headphones but not the internal speakers. On MacBook8,1 the speakers are driven by a
+4-channel TDM stream from the CS4208 codec, clocked by a PLL that the EFI firmware leaves locked. Linux breaks
+that clock twice during boot: with an HDA link reset, and by enabling the microphone bias on the combo-jack pin.
 
-That is useful diagnostic evidence but **not evidence of audible sound**. Audio remains listed as non-working until speakers/headphones/microphone have been tested and confirmed.
+The audio setup in this repository:
 
-A future audio troubleshooting pass should preserve the current baseline first:
+1. attaches `snd_hda_intel` to the CS4208 controller **without** a link reset (stock module options);
+2. installs Debian's Cirrus codec driver with a small patch: the combo-jack mic pin stays disabled and a
+   4-channel **CS4208 Speaker** device is added;
+3. adds PipeWire outputs (**MacBook Speakers**, optional macOS-style **EQ**, **MacBook Headphones**,
+   **MacBook Microphone**) and automatic switching when headphones are plugged in.
 
-```bash
-wpctl status
-pactl info
-pactl list short sinks
-pactl list short sources
-aplay -l
-arecord -l
-sudo dmesg | grep -Ei 'snd|hda|cs4208|codec|audio'
-```
+| Guide | For |
+|---|---|
+| [`docs/audio/README.md`](docs/audio/README.md) | Install, verify, uninstall, kernel updates, troubleshooting |
+| [`docs/audio/AI_RUNBOOK.md`](docs/audio/AI_RUNBOOK.md) | AI agents: gated install with expected outputs and rollback |
+| [`docs/audio/HOW_IT_WORKS.md`](docs/audio/HOW_IT_WORKS.md) | Root cause, measurements, design decisions |
 
-Document actual test results separately for:
-
-- Internal speakers
-- 3.5 mm headphone output
-- Built-in microphone
-- HDMI audio
-- Bluetooth audio, if used
+Verified on the reference machine (kernel `6.12.107+deb13-amd64`, PipeWire 1.4.2, WirePlumber 0.5.8) after reboot:
+speakers (desktop apps and `aplay`), headphones with automatic switching, internal microphone, HDMI audio unchanged.
+Not working: audio after suspend/resume, external microphone on the combo jack.
 
 ---
 
@@ -505,6 +537,7 @@ Document actual test results separately for:
 3. Confirm both Apple SPI devices are present.
 4. Test keyboard and touchpad physically.
 5. Check the current boot’s kernel log for Apple SPI/DMA errors.
+6. If the audio setup is installed: the new kernel boots with Debian's stock codec driver (speakers silent). Rebuild and reinstall it as described in [`docs/audio/README.md`](docs/audio/README.md#6-after-a-debian-kernel-update).
 
 ### Watch for the upstream solution
 
@@ -525,6 +558,8 @@ The preferred future end state is a Debian kernel containing the upstream DMI-sp
 - [Debian Wiki: Broadcom brcm80211](https://wiki.debian.org/brcm80211)
 - [Linux kernel configuration reference: Apple SPI keyboard and trackpad](https://cateee.net/lkddb/web-lkddb/KEYBOARD_APPLESPI.html)
 - [Linux kernel patch discussion: force PIO mode on MacBook8,1](https://patchew.org/linux/20260711055247.5412-1-fourdollars@debian.org/)
+- [thomas-shirley/macbook8.1-speaker-driver](https://github.com/thomas-shirley/macbook8.1-speaker-driver): MacBook8,1 speaker clock analysis and layout100 EQ (credited in [`docs/audio/README.md`](docs/audio/README.md#credits))
+- [leifliddy/macbook8-1-audio-driver-test issue #2](https://github.com/leifliddy/macbook8-1-audio-driver-test/issues/2): report of the TDM speaker path
 - [Field report: Debian/Arch-style MacBook8,1 PIO workaround](https://openwebcraft.com/archive/2026/omarchy-4-on-12-macbook8-1) — useful corroboration, but not an authoritative substitute for kernel or Debian documentation.
 
 ---

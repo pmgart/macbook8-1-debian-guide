@@ -23,6 +23,20 @@
 With an AI assistant: open the cloned repository in the assistant and ask it to follow [`AGENTS.md`](AGENTS.md).
 It will work through the steps above and the gated audio runbook, asking you before every privileged action.
 
+### Work in progress
+
+These are known open issues. They are being worked on and are **not solved** in this guide yet:
+
+| Area | Current state | Workaround until solved |
+|---|---|---|
+| **Sleep / wake (suspend/resume)** | After sleep the Apple SPI keyboard and touchpad stop working, and the internal speakers stay silent | Shut down or reboot instead of sleeping; consider disabling automatic suspend (lid close / idle) in your desktop's power settings |
+| **Keyboard after sleep** | Internal keyboard and touchpad fail after resume (see above) | Reboot; keep an external USB keyboard or SSH access available |
+| **Keyboard backlight default** | Backlight comes back at 0% after every boot (the saved level is 0 when it is stored at shutdown) | Set it by hand after login; a boot-time default is prepared but not yet verified |
+| **Audio after kernel updates** | Speaker driver must be rebuilt and reinstalled manually for each new kernel | Follow [docs/audio/README.md section 6](docs/audio/README.md#6-after-a-debian-kernel-update); automatic rebuild (DKMS) is planned |
+| **Public audio install/restore scripts** | Built from the scripts verified on the reference machine; the build is verified from GitHub, a full reinstall with the public scripts is still to be repeated | Follow the gates in [docs/audio/AI_RUNBOOK.md](docs/audio/AI_RUNBOOK.md); every step checks itself and can be undone |
+| **FaceTime HD webcam** | Not working (section 9) | None yet |
+| **Bluetooth, battery-life tuning** | Not evaluated | — |
+
 ---
 
 ## 1. Purpose and boundaries

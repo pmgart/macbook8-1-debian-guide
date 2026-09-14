@@ -16,6 +16,10 @@
 | Sound after suspend/resume | **Not working** | reboot restores it; sleep also affects Apple SPI input on this model |
 | Kernel updates | Manual step | rebuild + reinstall the driver (section 6) |
 
+**Work in progress:** audio after sleep/wake (currently silent until reboot), automatic rebuild after kernel updates
+(DKMS), and a full end-to-end repeat of the install/restore scripts in their published form. See the
+[work-in-progress list](../../README.md#work-in-progress) in the main README.
+
 Stock Debian plays headphones but not the speakers. The reason, measured on the hardware: Linux resets the audio
 link at boot and enables the headphone-jack microphone bias, and both destroy the codec clock that the EFI firmware
 set up for the speakers. This setup avoids both, adds a proper speaker device to the Cirrus codec driver, and wires it

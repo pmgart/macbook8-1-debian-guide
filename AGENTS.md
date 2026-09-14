@@ -23,6 +23,11 @@ only computer.
 Check which steps are already done (read-only commands in each section) before changing anything, and tell the user
 the plan before starting. Avoid suspend/resume on this model: it breaks the Apple SPI input and the speakers.
 
+**Work in progress (not solved, do not claim otherwise):** sleep/wake (breaks Apple SPI keyboard/touchpad and the
+speakers), keyboard backlight default level, automatic audio rebuild after kernel updates, webcam. See the
+[work-in-progress list](README.md#work-in-progress). Only start experimental work on these when the user explicitly
+asks, one change at a time, with a tested way back.
+
 ## Non-negotiable rules
 
 1. **Verify the machine first:** `cat /sys/class/dmi/id/product_name` must print exactly `MacBook8,1`. Other Mac

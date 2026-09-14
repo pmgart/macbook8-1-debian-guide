@@ -22,6 +22,8 @@ PATCH=$REPO/audio/driver/mb81-speakers.patch
 FILES="patch_cirrus.c hda_local.h hda_generic.h hda_auto_parser.h hda_jack.h hda_beep.h"
 
 die() { echo "ABORT: $*" >&2; exit 1; }
+# modinfo lives in /usr/sbin, which is not in a normal Debian user's PATH
+MODINFO=$(command -v modinfo || echo /usr/sbin/modinfo)
 
 echo "== MacBook8,1 speaker driver build for $K"
 [ "$(cat /sys/class/dmi/id/product_name 2>/dev/null)" = "MacBook8,1" ] || die "this is not a MacBook8,1"
@@ -56,7 +58,7 @@ echo "== compiling"
 make -C "/lib/modules/$K/build" M="$OUT" modules > "$OUT/build.log" 2>&1 || { tail -30 "$OUT/build.log"; die "compile failed (full log: $OUT/build.log)"; }
 ko=$OUT/snd-hda-codec-cirrus.ko
 [ -s "$ko" ] || die "module not produced"
-vermagic=$(modinfo -F vermagic "$ko")
+vermagic=$("$MODINFO" -F vermagic "$ko")
 case "$vermagic" in "$K "*) ;; *) die "vermagic '$vermagic' does not match $K";; esac
 grep -aq "MacBook8,1 speakers: codec clock" "$ko" || die "built module does not contain the speaker code"
 (cd "$OUT" && sha256sum snd-hda-codec-cirrus.ko > SHA256SUMS)

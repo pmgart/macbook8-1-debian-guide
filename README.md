@@ -19,18 +19,17 @@
 | 3 | Optional: SSH + Tailscale for remote recovery | [Section 5](#5-optional-but-strongly-recommended-tailscale--ssh-recovery-access) | A second way into the machine |
 | 4 | Get this repository on the MacBook: `sudo apt install git` then `git clone https://github.com/pmgart/macbook8-1-debian-guide.git` | — | Scripts available locally |
 | 5 | Internal speakers, headphone switching, microphone | [docs/audio/README.md](docs/audio/README.md) | Working audio |
+| 6 | **Sleep and hibernate (suspend-then-hibernate)** | [sleep/docs/README.md](sleep/docs/README.md) | Working keyboard after wake, zero battery drain on long sleep |
 
 With an AI assistant: open the cloned repository in the assistant and ask it to follow [`AGENTS.md`](AGENTS.md).
 It will work through the steps above and the gated audio runbook, asking you before every privileged action.
 
-### Work in progress
+## Known limitations
 
 These are known open issues. They are being worked on and are **not solved** in this guide yet:
 
 | Area | Current state | Workaround until solved |
 |---|---|---|
-| **Sleep / wake (suspend/resume)** | After sleep the Apple SPI keyboard and touchpad stop working, and the internal speakers stay silent | Shut down or reboot instead of sleeping; consider disabling automatic suspend (lid close / idle) in your desktop's power settings |
-| **Keyboard after sleep** | Internal keyboard and touchpad fail after resume (see above) | Reboot; keep an external USB keyboard or SSH access available |
 | **Keyboard backlight default** | Backlight comes back at 0% after every boot (the saved level is 0 when it is stored at shutdown) | Set it by hand after login; a boot-time default is prepared but not yet verified |
 | **Audio after kernel updates** | Speaker driver must be rebuilt and reinstalled manually for each new kernel | Follow [docs/audio/README.md section 6](docs/audio/README.md#6-after-a-debian-kernel-update); automatic rebuild (DKMS) is planned |
 | **Public audio install/restore scripts** | Built from the scripts verified on the reference machine; the build is verified from GitHub, a full reinstall with the public scripts is still to be repeated | Follow the gates in [docs/audio/AI_RUNBOOK.md](docs/audio/AI_RUNBOOK.md); every step checks itself and can be undone |
@@ -112,7 +111,7 @@ The reference host was using only **13 GB of 221 GB** on the root filesystem at 
 ### Deliberately not marked as solved
 
 - **FaceTime HD webcam:** the PCI device is visible but no V4L2 node such as `/dev/video0` exists. No webcam driver or userspace bridge is configured by this guide.
-- **Suspend/resume:** not working on the reference machine. After sleep the Apple SPI keyboard and touchpad stop working (owner report, 2026-09-14) and the internal speakers stay silent because the resume path resets the HDA link. Reboot instead of suspending.
+- **Suspend/resume:** **Fixed in this guide.** See the [sleep/](sleep/) section for the verified suspend-then-hibernate setup. After s2idle wake the keyboard and trackpad work (SPI hook). After hibernate wake the internal speakers also work (full EFI boot re-initialises the codec). The old state "not working" was accurate as of 2026-09-14 but is now solved.
 - **External microphone on the combo jack:** not supported by the audio setup (enabling it breaks the speaker clock).
 - **Bluetooth:** not evaluated in this guide.
 - **Battery-life tuning:** not evaluated in this guide.
@@ -376,7 +375,7 @@ Use this test matrix before calling the installation stable:
 | Normal reboot | Keyboard and touchpad work at login and after sign-in |
 | Cold boot | Shut down fully, wait briefly, start again, and retest both devices |
 | Repeated reboot | Repeat at least 2–3 times |
-| Suspend/resume | Known broken on the reference machine (keyboard/touchpad and speakers fail after sleep); avoid suspend |
+| Suspend/resume | **Fixed** — see [sleep/](sleep/) section. s2idle + SPI hook for short sleep, hibernate for long sleep. Keyboard and trackpad work after every wake. |
 | Kernel update | Re-run the validation commands after every new kernel |
 
 ### 6.7 Temporary boot recovery if the persistent change is not active

@@ -8,24 +8,24 @@ only computer.
 
 | User wants | Read and follow |
 |---|---|
-| Keyboard/trackpad working (Apple SPI) | [README.md](README.md) section 6 |
-| Internal speakers / headphones / microphone | [docs/audio/AI_RUNBOOK.md](docs/audio/AI_RUNBOOK.md) (gated steps) |
-| Understand or port the audio fix | [docs/audio/HOW_IT_WORKS.md](docs/audio/HOW_IT_WORKS.md) |
-| Hardware status / collecting diagnostics | [README.md](README.md) sections 2, 3 and 8 |
+|| Keyboard/trackpad working (Apple SPI) | [README.md](README.md) section 6 |
+|| Sleep / wake / hibernate | [sleep/docs/README.md](sleep/docs/README.md) |
+|| Internal speakers / headphones / microphone | [docs/audio/AI_RUNBOOK.md](docs/audio/AI_RUNBOOK.md) (gated steps) |
+|| Understand or port the audio fix | [docs/audio/HOW_IT_WORKS.md](docs/audio/HOW_IT_WORKS.md) |
+|| Hardware status / collecting diagnostics | [README.md](README.md) sections 2, 3 and 8 |
 
 ## Setting up a new MacBook8,1: order of work
 
 1. Debian 13 installed with `non-free-firmware`, Wi-Fi working ([README.md](README.md) section 4).
 2. Apple SPI keyboard/touchpad fix, verified after reboot ([README.md](README.md) section 6).
 3. Optional remote recovery: SSH + Tailscale ([README.md](README.md) section 5).
-4. Audio: [docs/audio/AI_RUNBOOK.md](docs/audio/AI_RUNBOOK.md), gates 0–7.
+4. Sleep and hibernate: [sleep/docs/README.md](sleep/docs/README.md) (suspend-then-hibernate, verified).
+5. Audio: [docs/audio/AI_RUNBOOK.md](docs/audio/AI_RUNBOOK.md), gates 0–7.
 
 Check which steps are already done (read-only commands in each section) before changing anything, and tell the user
-the plan before starting. Avoid suspend/resume on this model: it breaks the Apple SPI input and the speakers.
+the plan before starting. Sleep/wake is now supported via the [sleep/](sleep/) section; do not disable suspend.
 
-**Work in progress (not solved, do not claim otherwise):** sleep/wake (breaks Apple SPI keyboard/touchpad and the
-speakers), keyboard backlight default level, automatic audio rebuild after kernel updates, webcam. See the
-[work-in-progress list](README.md#work-in-progress). Only start experimental work on these when the user explicitly
+**Work in progress (not solved, do not claim otherwise):** keyboard backlight default level, automatic audio rebuild after kernel updates, webcam. Only start experimental work on these when the user explicitly
 asks, one change at a time, with a tested way back.
 
 ## Non-negotiable rules
@@ -48,6 +48,9 @@ asks, one change at a time, with a tested way back.
 
 ```text
 README.md                    main guide: install baseline, Apple SPI fix, status, diagnostics
+sleep/docs/README.md         human sleep/hibernate guide
+sleep/docs/HOW_IT_WORKS.md   root cause, measurements, design decisions
+sleep/scripts/               systemd sleep hook, sleep.conf, logind.conf
 docs/audio/README.md         human audio guide
 docs/audio/AI_RUNBOOK.md     step-by-step audio install for agents (gates, expected output, rollback)
 docs/audio/HOW_IT_WORKS.md   root cause, measurements, design decisions
@@ -61,5 +64,5 @@ audio/diagnostics/           read-only codec/clock readers, EFI mute-bit tool
 
 Verified: Debian 13 (trixie), kernel `6.12.107+deb13-amd64`, PipeWire 1.4 / WirePlumber 0.5, Cinnamon on Xorg.
 Other 6.12 Debian kernels should work if the patch applies (the build script checks). Kernels ≥ 6.17 moved the HDA
-codec sources and are **not** supported without porting. Suspend/resume is not working for audio (or reliably for
-Apple SPI input) and is out of scope.
+codec sources and are **not** supported without porting. Sleep/wake and hibernate are supported via the [sleep/](sleep/)
+section on the reference machine.

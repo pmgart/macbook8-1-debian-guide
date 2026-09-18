@@ -20,6 +20,7 @@
 | 4 | Get this repository on the MacBook: `sudo apt install git` then `git clone https://github.com/pmgart/macbook8-1-debian-guide.git` | — | Scripts available locally |
 | 5 | Internal speakers, headphone switching, microphone | [docs/audio/README.md](docs/audio/README.md) | Working audio |
 | 6 | **Sleep and hibernate (suspend-then-hibernate)** | [sleep/docs/README.md](sleep/docs/README.md) | Working keyboard after wake, zero battery drain on long sleep |
+| 7 | **FaceTime HD camera** | [camera/docs/README.md](camera/docs/README.md) | Working webcam 848×588 @ 30 fps |
 
 With an AI assistant: open the cloned repository in the assistant and ask it to follow [`AGENTS.md`](AGENTS.md).
 It will work through the steps above and the gated audio runbook, asking you before every privileged action.
@@ -33,7 +34,7 @@ These are known open issues. They are being worked on and are **not solved** in 
 | **Keyboard backlight default** | Backlight comes back at 0% after every boot (the saved level is 0 when it is stored at shutdown) | Set it by hand after login; a boot-time default is prepared but not yet verified |
 | **Audio after kernel updates** | Speaker driver must be rebuilt and reinstalled manually for each new kernel | Follow [docs/audio/README.md section 6](docs/audio/README.md#6-after-a-debian-kernel-update); automatic rebuild (DKMS) is planned |
 | **Public audio install/restore scripts** | Built from the scripts verified on the reference machine; the build is verified from GitHub, a full reinstall with the public scripts is still to be repeated | Follow the gates in [docs/audio/AI_RUNBOOK.md](docs/audio/AI_RUNBOOK.md); every step checks itself and can be undone |
-| **FaceTime HD webcam** | Not working (section 9) | None yet |
+| **FaceTime HD webcam** | See [camera/](camera/) section | Working 848×588 @ 30 fps |
 | **Bluetooth, battery-life tuning** | Not evaluated | — |
 
 ---
@@ -70,7 +71,7 @@ The guide is **desktop-environment agnostic**. Cinnamon is the reference desktop
 | Wi-Fi | Broadcom BCM4350 802.11ac (`14e4:43a3`) | Working with `brcmfmac` + firmware |
 | Keyboard | Apple SPI Keyboard | Working with PIO workaround |
 | Touchpad | Apple SPI Touchpad | Working with PIO workaround |
-| Camera | Broadcom 720p FaceTime HD Camera (`14e4:1570`) | **Not working yet**; no `/dev/video0` device |
+| Camera | Broadcom 720p FaceTime HD Camera (`14e4:1570`) | **Working** with firmware 5.60.0 + DKMS driver from master ([camera/](camera/)), 848×588 @ 30 fps |
 | Audio: internal speakers | Cirrus Logic CS4208 (`10134208`, SSID `106b6400`), 4-channel TDM amplifier path | **Working** with the patched codec driver and options in [`docs/audio`](docs/audio/README.md) |
 | Audio: headphones / internal mic | CS4208 analog path | **Working** (stock Debian already plays headphones); automatic headphone/speaker switching with [`docs/audio`](docs/audio/README.md) |
 | Audio: mic on the combo jack | CS4208 pin `0x18` | **Not supported**: enabling it breaks the speaker clock |
@@ -110,7 +111,7 @@ The reference host was using only **13 GB of 221 GB** on the root filesystem at 
 
 ### Deliberately not marked as solved
 
-- **FaceTime HD webcam:** the PCI device is visible but no V4L2 node such as `/dev/video0` exists. No webcam driver or userspace bridge is configured by this guide.
+- **FaceTime HD webcam:** **Fixed in this guide.** See the [camera/](camera/) section. Verified 848×588 @ 30 fps with firmware 5.60.0, sensor file `1675_01XX.dat`, and DKMS driver from master.
 - **Suspend/resume:** **Fixed in this guide.** See the [sleep/](sleep/) section for the verified suspend-then-hibernate setup. After s2idle wake the keyboard and trackpad work (SPI hook). After hibernate wake the internal speakers also work (full EFI boot re-initialises the codec). The old state "not working" was accurate as of 2026-09-14 but is now solved.
 - **External microphone on the combo jack:** not supported by the audio setup (enabling it breaks the speaker clock).
 - **Bluetooth:** not evaluated in this guide.

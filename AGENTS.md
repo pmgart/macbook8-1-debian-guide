@@ -25,7 +25,7 @@ only computer.
 Check which steps are already done (read-only commands in each section) before changing anything, and tell the user
 the plan before starting. Sleep/wake is now supported via the [sleep/](sleep/) section; do not disable suspend.
 
-**Work in progress (not solved, do not claim otherwise):** keyboard backlight default level, automatic audio rebuild after kernel updates, webcam. Only start experimental work on these when the user explicitly
+**Work in progress (not solved, do not claim otherwise):** keyboard backlight default level, automatic audio rebuild after kernel updates. The webcam is solved (see camera/). Only start experimental work on these when the user explicitly
 asks, one change at a time, with a tested way back.
 
 ## Non-negotiable rules

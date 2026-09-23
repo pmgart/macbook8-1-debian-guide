@@ -34,7 +34,6 @@ These are known open issues. They are being worked on and are **not solved** in 
 | **Keyboard backlight default** | Backlight comes back at 0% after every boot (the saved level is 0 when it is stored at shutdown) | Set it by hand after login; a boot-time default is prepared but not yet verified |
 | **Audio after kernel updates** | Speaker driver must be rebuilt and reinstalled manually for each new kernel | Follow [docs/audio/README.md section 6](docs/audio/README.md#6-after-a-debian-kernel-update); automatic rebuild (DKMS) is planned |
 | **Public audio install/restore scripts** | Built from the scripts verified on the reference machine; the build is verified from GitHub, a full reinstall with the public scripts is still to be repeated | Follow the gates in [docs/audio/AI_RUNBOOK.md](docs/audio/AI_RUNBOOK.md); every step checks itself and can be undone |
-| **FaceTime HD webcam** | See [camera/](camera/) section | Working 848×588 @ 30 fps |
 | **Bluetooth, battery-life tuning** | Not evaluated | — |
 
 ---
@@ -474,26 +473,23 @@ An AI agent should:
 
 ---
 
-## 9. Webcam: known unsupported state
+## 9. Webcam
 
-The reference system detects this PCI device:
+The FaceTime HD camera is **verified working** (848×588 @ 30 fps) using firmware 5.60.0 extracted from an Apple
+macOS 10.12.6 update, the `1675_01XX.dat` sensor file, and a DKMS build of `patjak/facetimehd` master (commit
+`98b55fd`, which removes the hardcoded 1280×720 crop). See [`camera/docs/README.md`](camera/docs/README.md) for
+installation and verification, and [`camera/docs/HOW_IT_WORKS.md`](camera/docs/HOW_IT_WORKS.md) for the root
+cause of the three pieces that stock Debian lacks.
 
-```text
-Broadcom 720p FaceTime HD Camera [14e4:1570]
-```
-
-However, there is no `/dev/video0` device. That means the normal V4L2 userspace interface is not available and the webcam should be considered **non-functional**.
-
-Do not add random DKMS drivers or firmware blobs based only on a similar Mac model. A future webcam effort should begin with:
+Do not add random DKMS drivers or firmware blobs based only on a similar Mac model — the 5.60.0 firmware, the
+sensor file and the master driver commit are each required; older versions produce a silent sensor or a cropped
+image. If the camera stops working, diagnose with:
 
 ```bash
 lspci -nnk | grep -A3 -Ei 'camera|multimedia'
-lsusb
 ls -l /dev/video* 2>/dev/null || true
 sudo dmesg | grep -Ei 'facetime|camera|broadcom|v4l2|uvc'
 ```
-
-Record the exact kernel version and device IDs with any solution.
 
 ---
 
